@@ -1,5 +1,6 @@
 package org.petrushin.graphics.figure;
 
+//точка в пространстве, которая имеет координаты x, y, z
 public class Dot {
     private double x;
     private double y;

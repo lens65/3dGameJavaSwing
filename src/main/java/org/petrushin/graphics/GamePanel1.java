@@ -36,7 +36,7 @@ public class GamePanel1 extends JPanel implements Runnable{
     private double beta = 0.0;
 
 
-    private Figure ship = FiguresReader.readFigureFromFile("F:\\IntelliJ IDEA\\FPSGame\\src\\main\\resources\\tinker.txt");
+    private Figure ship = FiguresReader.readFigureFromFile("F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\tinker.txt");
 
     public GamePanel1(){
         this.setPreferredSize(new Dimension(WINDOW_WIDTH, WINDOW_HEIGHT));
@@ -145,6 +145,7 @@ public class GamePanel1 extends JPanel implements Runnable{
             //ссоздаем копию точки в пространстве что б спроэктировать её на экран (так как значения будут перерасчитаны, нам нужно создать копиию и менять её иначе будет перерасчитана точка в пространстве -> ошибка)
             Triangle triangleTranslated = new Triangle(new Dot(), new Dot(), new Dot());
 
+            //пока что по другому задать не получилось (разберусь позже)
             triangleTranslated.getDot1().setX(triangleRotatedZX.getDot1().getX());
             triangleTranslated.getDot2().setX(triangleRotatedZX.getDot2().getX());
             triangleTranslated.getDot3().setX(triangleRotatedZX.getDot3().getX());
@@ -206,7 +207,6 @@ public class GamePanel1 extends JPanel implements Runnable{
             g2.setColor(new Color(0, 0, 0, dotProduct > 0 ? (int)(dotProduct * 200) : 200));
             g2.fillPolygon(x, y, 3);
         }
-
         g2.dispose();
     }
 
@@ -243,7 +243,6 @@ public class GamePanel1 extends JPanel implements Runnable{
 
         return dot;
     }
-
 
 }
 

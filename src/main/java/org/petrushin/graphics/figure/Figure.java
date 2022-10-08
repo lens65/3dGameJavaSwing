@@ -6,8 +6,6 @@ import java.util.List;
 public class Figure {
     private List<Triangle> triangles;
 
-
-
     public Figure() {
         triangles = new ArrayList<>();
     }
