@@ -41,4 +41,9 @@ public class Triangle {
     public void setDot3(Dot dot3) {
         this.dot3 = dot3;
     }
+
+    public Dot[] getAllDots(){
+        Dot[] dots = {dot1, dot2, dot3};
+        return dots;
+    }
 }

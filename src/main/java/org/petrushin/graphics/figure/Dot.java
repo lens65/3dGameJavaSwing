@@ -43,4 +43,10 @@ public class Dot {
     public void setZ(double z) {
         this.z = z;
     }
+
+    public void changeCoordinate(Dot dot){
+        this.x = dot.getX();
+        this.y = dot.getY();
+        this.z = dot.getZ();
+    }
 }

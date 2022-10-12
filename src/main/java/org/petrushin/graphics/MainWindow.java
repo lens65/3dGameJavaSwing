@@ -6,10 +6,7 @@ import java.awt.*;
 public class MainWindow {
 
     private JFrame window  = new JFrame();
-//    перый вариант с псевдо 3д графикой (что бы запустить его, нужно раскомментировтаь 9 строку и закомментировтаь 12)
-//    private GamePanel gamePanel = new GamePanel();
-//    вариант "настоящей" 3д графикой с использованием матрицы преобразования
-    private GamePanel1 gamePanel = new GamePanel1();
+    private GamePanel gamePanel = new GamePanel();
 
     //создание главного окна приложения
     public void drawWindow(){

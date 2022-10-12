@@ -1,200 +1,376 @@
-//package org.petrushin.graphics;
+package org.petrushin.graphics;
+
+import org.petrushin.graphics.figure.Dot;
+import org.petrushin.graphics.figure.Figure;
+import org.petrushin.graphics.figure.FiguresReader;
+import org.petrushin.graphics.figure.Triangle;
+
+import javax.swing.*;
+import java.awt.*;
+import java.util.*;
+import java.util.List;
+
+public class GamePanel extends JPanel implements Runnable{
+
+    private final int WINDOW_WIDTH = 800;
+    private final int WINDOW_HEIGHT = 800;
+    private KeyHandler keyHandler = new KeyHandler();
+
+    private int Fps = 60;
+
+    private final int fov = 90;
+    private double a = (double) WINDOW_HEIGHT/(double) WINDOW_WIDTH;
+    private double t = 1.0 / Math.tan(Math.toRadians(fov/2));
+    private double maxDistance = 1000.0;
+    private double distanceToDisplay = 1.0;
+    private double z11 = maxDistance / (maxDistance - distanceToDisplay);
+    private double z22 = (maxDistance * distanceToDisplay) / (maxDistance - distanceToDisplay);
+    //точка положения камеры в мировой системе координат
+    private Dot camera = new Dot(0.0, 0.0, 0.0);
+    //длинна вкторов для системы координат камеры
+    private double viewPointDistance = 1.0;
+    //Z вектор системы координат камеры
+    private Dot viewPoint = new Dot(0.0, 0.0, 1.0);
+    //X вектор системы координат камеры
+    private Dot cameraX = new Dot(1.0, 0.0, 0.0);
+    //Y вектор системы координат камеры
+    private Dot cameraY = new Dot(0.0, -1.0, 0.0);
+
+    private Dot[] cameraDots = {camera, viewPoint, cameraX, cameraY};
+
+    //X, Y и Z ветора мировой системы. Они не изменны
+    private final Dot worldX = new Dot(1.0, 0.0, 0.0);
+    private final Dot worldY = new Dot(0.0, -1.0, 0.0);
+    private final Dot worldZ = new Dot(0.0, 0.0, 1.0);
+    //ветора движения вперед, вправо, вверх
+    private final Dot moveForward = new Dot(0.0, 0.0, 0.1);
+    private final Dot moveRight = new Dot(0.1, 0.0, 0.0);
+    private final Dot moveUp = new Dot(0.0, 0.1, 0.0);
+
+
+
+    private Dot light = new Dot (0.0, 0.0, -1.0);
+    double lengthLight = Math.sqrt(light.getX() * light.getX() + light.getY() * light.getY() + light.getZ() * light.getZ());
+
+    //матрица для проецировния точек на экран 3д -> 2д
+    private double[][] projectionMatrix = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
+    //атрица поворота
+    private double[][] matrixRot = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
+    private double[][] matrixRot1 = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
+
+    private double alpha = 0.0;
+    private double beta = 0.0;
+    private double theta = 0.0;
+
+
+    private Figure teapot = FiguresReader.readFigureFromFile("F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\teapot.txt");
+    private Figure cube = FiguresReader.readFigureFromFile("F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\tinker.txt");
+    private Figure mountain = FiguresReader.readFigureFromFile("F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\mountain.txt");
+
+    public GamePanel(){
+        this.setPreferredSize(new Dimension(WINDOW_WIDTH, WINDOW_HEIGHT));
+        this.setBackground(Color.black);
+        this.setDoubleBuffered(true);
+        this.addKeyListener(keyHandler);
+        this.setFocusable(true);
+    }
+
+    Thread gameThread;
+
+    private void setDefaultValues(){
+        projectionMatrix[0][0] = a * t;
+        projectionMatrix[1][1] = t;
+        projectionMatrix[2][2] = z11;
+        projectionMatrix[3][2] = -z22;
+        projectionMatrix[2][3] = 1.0;
+        projectionMatrix[3][3] = 0.0;
+        light.setX(light.getX() / lengthLight);
+        light.setY(light.getY() / lengthLight);
+        light.setZ(light.getZ() / lengthLight);
+    }
+
+
+    public void startGame(){
+        setDefaultValues();
+        gameThread = new Thread(this);
+        gameThread.start();
+    }
+
+    @Override
+    public void run() {
+
+        double drawInterval = 1000000000 / Fps;
+        double nextDrawTime = System.nanoTime() + drawInterval;
+
+        while (gameThread != null){
+            update();
+            repaint();
+
+            try {
+                double remainingTime = (nextDrawTime - System.nanoTime()) / 1000000;
+                if(remainingTime < 0 ) remainingTime = 0;
+                Thread.sleep((long) remainingTime);
+                nextDrawTime += drawInterval;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void update(){
+
+        if(keyHandler.rightPressed){
+            alpha--;
+            if (alpha == -1) alpha=360;
+            rotateCamera();
+
+        }
+        if(keyHandler.leftPressed){
+            alpha++;
+            if (alpha == 361) alpha=0;
+            rotateCamera();
+        }
+
+        if(keyHandler.upPressed){
+            beta--;
+            if(beta < -90) beta = -90;
+            rotateCamera();
+        }
+
+        if(keyHandler.downPressed){
+            beta++;
+            if(beta > 90) beta = 90;
+            rotateCamera();
+        }
+        if(keyHandler.moveForwardPressed){
+            Dot dot = new Dot(viewPoint.getX() * 0.00001, viewPoint.getY() * 0.00001, viewPoint.getY() * 0.00001);
+            camera.setX(camera.getX() + viewPoint.getX() - dot.getX());
+            camera.setY(camera.getY() + viewPoint.getY() - dot.getY());
+            camera.setZ(camera.getZ() + viewPoint.getZ() - dot.getZ());
+            viewPoint.setX(dot.getX());
+            viewPoint.setY(dot.getY());
+            viewPoint.setZ(dot.getZ());
+
+            rotateCamera();
+        }
+        if(keyHandler.moveBackPressed){
+            Dot dot = new Dot(viewPoint.getX() / 100000, viewPoint.getY() / 100000, viewPoint.getY() / 100000);
+            camera.setX(camera.getX() - viewPoint.getX() - dot.getX());
+            camera.setY(camera.getY() - viewPoint.getY() - dot.getY());
+            camera.setZ(camera.getZ() - viewPoint.getZ() - dot.getZ());
+            viewPoint.setX(dot.getX());
+            viewPoint.setY(dot.getY());
+            viewPoint.setZ(dot.getZ());
+
+            rotateCamera();
+        }
+        if(keyHandler.moveRightPressed){
+            Dot dot = new Dot(cameraX.getX() * 0.00001, cameraX.getY() * 0.00001, cameraX.getY() * 0.00001);
+            camera.setX(camera.getX() + cameraX.getX() - dot.getX());
+            camera.setY(camera.getY() + cameraX.getY() - dot.getY());
+            camera.setZ(camera.getZ() + cameraX.getZ() - dot.getZ());
+            cameraX.setX(dot.getX());
+            cameraX.setY(dot.getY());
+            cameraX.setZ(dot.getZ());
+
+            rotateCamera();
+        }
+        if(keyHandler.moveLeftPressed){
+            Dot dot = new Dot(cameraX.getX() / 100000, cameraX.getY() / 100000, cameraX.getY() / 100000);
+            camera.setX(camera.getX() - cameraX.getX() - dot.getX());
+            camera.setY(camera.getY() - cameraX.getY() - dot.getY());
+            camera.setZ(camera.getZ() - cameraX.getZ() - dot.getZ());
+            cameraX.setX(dot.getX());
+            cameraX.setY(dot.getY());
+            cameraX.setZ(dot.getZ());
+            rotateCamera();
+        }
+    }
+
+    private void rotateCamera() {
+        //Углы поворота Эйлера и матрица к ним но эта матрица для углов ZXZ, я использую YXY
+        //https://ru.wikipedia.org/wiki/%D0%A3%D0%B3%D0%BB%D1%8B_%D0%AD%D0%B9%D0%BB%D0%B5%D1%80%D0%B0
+        //Матрицы для поворотов
+        //https://ru.wikipedia.org/wiki/%D0%9C%D0%B0%D1%82%D1%80%D0%B8%D1%86%D0%B0_%D0%BF%D0%BE%D0%B2%D0%BE%D1%80%D0%BE%D1%82%D0%B0
+        //матрица для вращения по горизонтали
+//        matrixRot1[0][0] = Math.cos(Math.toRadians(alpha));
+//        matrixRot1[0][2] = Math.sin(Math.toRadians(alpha));
+//        matrixRot1[1][1] = 1;
+//        matrixRot1[2][0] = -Math.sin(Math.toRadians(alpha));
+//        matrixRot1[2][2] = Math.cos(Math.toRadians(alpha));
+//        matrixRot1[3][3] = 1;
+////матрица для вращения по вертикали
+//        matrixRot[0][0] = 1;
+//        matrixRot[1][1] = Math.cos(Math.toRadians(beta));
+//        matrixRot[1][2] = -Math.sin(Math.toRadians(beta));
+//        matrixRot[2][1] = Math.sin(Math.toRadians(beta));
+//        matrixRot[2][2] = Math.cos(Math.toRadians(beta));
+//        matrixRot[3][3] = 1;
+        //произмедение 2х последних матриц
+        matrixRot[0][0] = Math.cos(Math.toRadians(alpha));
+        matrixRot[0][1] = Math.sin(Math.toRadians(alpha)) * Math.sin(Math.toRadians(beta));
+        matrixRot[0][2] = Math.sin(Math.toRadians(alpha)) * Math.cos(Math.toRadians(beta));
+        matrixRot[1][1] = Math.cos(Math.toRadians(beta));
+        matrixRot[1][2] = -Math.sin(Math.toRadians(beta));
+        matrixRot[2][0] = -Math.sin(Math.toRadians(alpha));
+        matrixRot[2][1] = Math.cos(Math.toRadians(alpha)) * Math.sin(Math.toRadians(beta));
+        matrixRot[2][2] = Math.cos(Math.toRadians(alpha)) * Math.cos(Math.toRadians(beta));
+        matrixRot[3][3] = 1;
+
+
+
+
+        cameraX.changeCoordinate(multiplyProjection(worldX, matrixRot));
+        viewPoint.changeCoordinate(multiplyProjection(worldZ, matrixRot));
+        cameraY.changeCoordinate(multiplyProjection(worldY, matrixRot));
+    }
+
+    public void paintComponent(Graphics g){
+        super.paintComponent(g);
+        Graphics2D g2 = (Graphics2D) g;
+
+        Map<Triangle, Double> trianglesWD = new HashMap<>();
+        List<Triangle> triangles = new ArrayList<>();
+
+
+        for(Triangle triangle : teapot.getTriangles()) {
+            //координаты треугольника переведенные из мировой системы в систему камеры
+            Triangle triangleRotated = new Triangle(getDotRelationCamera(triangle.getDot1()), getDotRelationCamera(triangle.getDot2()), getDotRelationCamera(triangle.getDot3()));
+
+            //в теории не должно прорисовывать объекты которые за камерой
+
+//            if(!checkVisibility(triangleRotated)) continue;
+
+//            if(triangle.getDot1().getZ() <= camera.getZ() || triangle.getDot2().getZ() <= camera.getZ() || triangle.getDot3().getZ() <= camera.getZ()) continue;
+//            boolean visible = true;
+//            for(Dot dot : triangleRotated.getAllDots()){
 //
-//import javax.swing.*;
-//import javax.swing.event.AncestorEvent;
-//import java.awt.*;
-//
-//public class GamePanel extends JPanel implements Runnable{
-//
-//    private final int WINDOW_WIDTH = 800;
-//    private final int WINDOW_HEIGHT = 600;
-//    private KeyHandler keyHandler = new KeyHandler();
-//
-//
-//    //параметры камеры
-//    private double cameraPosX = 2000;
-//    private double cameraPosY = 2000;
-//    private final int displayDistance = 400;
-//    private int POV = 0;
-//    private final int FOV = 90;
-//    private final int MAX_VISIBLE_DISTANCE = 10000;
-//    private int visibleDistance;
-//
-//    private final double ANGLES[] = {0.7853981633974483, 0.7841465995953675, 0.7828919029808601, 0.7816340657417952, 0.7803730800666359, 0.7791089381447408, 0.7778416321666715, 0.7765711543245006, 0.7752974968121263, 0.7740206518255899, 0.7727406115633964, 0.7714573682268393, 0.770170914020331, 0.7688812411517344, 0.7675883418326999, 0.7662922082790075, 0.7649928327109101, 0.7636902073534838, 0.7623843244369802, 0.761075176197183, 0.7597627548757708, 0.7584470527206811, 0.7571280619864807, 0.7558057749347388, 0.7544801838344056, 0.7531512809621944, 0.7518190586029677, 0.7504835090501291, 0.7491446246060172, 0.7478023975823062, 0.746456820300409, 0.7451078850918866, 0.74375558429886, 0.7423999102744271, 0.741040855383086, 0.7396784120011599, 0.7383125725172279, 0.7369433293325613, 0.7355706748615624, 0.7341946015322094, 0.7328151017865066, 0.731432168080936, 0.730045792886918, 0.728655968691273, 0.7272626879966902, 0.7258659433221999, 0.7244657272036508, 0.7230620321941922, 0.7216548508647612, 0.7202441758045743, 0.7188299996216245, 0.7174123149431816, 0.7159911144163003, 0.7145663907083297, 0.7131381365074314, 0.7117063445230993, 0.7102710074866861, 0.7088321181519345, 0.7073896692955132, 0.7059436537175577, 0.7044940642422176, 0.7030408937182063, 0.7015841350193581, 0.7001237810451888, 0.6986598247214632, 0.6971922590007653, 0.6957210768630759, 0.6942462713163537, 0.6927678353971221, 0.6912857621710621, 0.6898000447336079, 0.6883106762105506, 0.6868176497586452, 0.685320958566223, 0.6838205958538095, 0.6823165548747481, 0.6808088289158275, 0.6792974112979161, 0.6777822953765994, 0.6762634745428253, 0.6747409422235526, 0.673214691882405, 0.6716847170203317, 0.6701510111762708, 0.6686135679278208, 0.6670723808919152, 0.6655274437255028, 0.663978750126234, 0.6624262938331511, 0.6608700686273854, 0.6593100683328579, 0.6577462868169858, 0.6561787179913949, 0.6546073558126363, 0.6530321942829086, 0.6514532274507854, 0.6498704494119476, 0.6482838543099212, 0.6466934363368204, 0.645099189734095, 0.6435011087932844, 0.6418991878567745, 0.6402934213185622, 0.6386838036250225, 0.6370703292756836, 0.6354529928240029, 0.6338317888781527, 0.6322067121018067, 0.6305777572149348, 0.6289449189945999, 0.6273081922757625, 0.6256675719520873, 0.6240230529767569, 0.6223746303632889, 0.6207222991863593, 0.6190660545826282, 0.6174058917515728, 0.6157418059563231, 0.6140737925245042, 0.6124018468490809, 0.6107259643892087, 0.6090461406710879, 0.6073623712888241, 0.6056746519052908, 0.6039829782529978, 0.6022873461349642, 0.600587751425594, 0.5988841900715577, 0.5971766580926775, 0.5954651515828164, 0.5937496667107711, 0.5920301997211694, 0.5903067469353719, 0.5885793047523763, 0.586847869649727, 0.5851124381844273, 0.5833730069938559, 0.5816295727966869, 0.5798821323938134, 0.5781306826692738, 0.5763752205911836, 0.5746157432126677, 0.5728522476727976, 0.5710847311975327, 0.5693131911006619, 0.5675376247847507, 0.5657580297420902, 0.5639744035556493, 0.5621867439000293, 0.5603950485424202, 0.5585993153435626, 0.5567995422587082, 0.5549957273385868, 0.5531878687303702, 0.5513759646786447, 0.5495600135263794, 0.5477400137159023, 0.5459159637898732, 0.5440878623922609, 0.5422557082693229, 0.540419500270584, 0.5385792373498188, 0.5367349185660332, 0.5348865430844492, 0.53303411017749, 0.5311776192257647, 0.5293170697190559, 0.5274524612573073, 0.5255837935516101, 0.5237110664251932, 0.5218342798144104, 0.5199534337697294, 0.5180685284567211, 0.5161795641570471, 0.5142865412694495, 0.5123894603107377, 0.5104883219167758, 0.5085831268434695, 0.5066738759677523, 0.5047605702885691, 0.502843210927861, 0.5009217991315462, 0.49899633627050255, 0.49706682384154516, 0.4951332634684041, 0.4931956569026998, 0.4912540060249166, 0.489308312845373, 0.4873585795051903, 0.4854048082772584, 0.483447001567199, 0.4814851619143246, 0.47951929199259613, 0.47754939461157586, 0.4755754727173774, 0.47359752939361116, 0.4716155678623278, 0.46962959148495403, 0.46763960376322916, 0.4656456083401317, 0.4636476090008061, 0.46164560967348045, 0.4596396144303821, 0.4576296274886474, 0.45561565321122455, 0.4535976961077718, 0.45157576083555034, 0.44954985220031024, 0.44751997515716985, 0.4454861348114896, 0.4434483364197382, 0.44140658539035277, 0.43936088728459144, 0.4373112478173776, 0.4352576728581385, 0.43320016843163495, 0.431138740718782, 0.4290733960574644, 0.4270041409433401, 0.42493098203063695, 0.42285392613294076, 0.4207729802239732, 0.4186881514383617, 0.4165994470723974, 0.41450687458478563, 0.4124104415973872, 0.41031015589594433, 0.40820602543080176, 0.4060980583176154, 0.4039862628380484, 0.4018706474404565, 0.3997512207405648, 0.39762799152212924, 0.39550096873758817, 0.3933701615087004, 0.39123557912717405, 0.3890972310552786, 0.386955126926446, 0.38480927654586106, 0.3826596898910347, 0.38050637711236496, 0.3783493485336863, 0.37618861465280207, 0.37402418614200506, 0.3718560738485812, 0.36968428879530135, 0.3675088421808959, 0.3653297453805155, 0.36314700994617627, 0.36096064760718877, 0.35877067027057225, 0.35657709002145116, 0.35437991912343775, 0.35217917001899596, 0.34997485532979017, 0.3477669878570154, 0.345555580581712, 0.34334064666506314, 0.3411221994486715, 0.33890025245482247, 0.336674819386727, 0.3344459141287462, 0.3322135507465966, 0.3299777434875414, 0.3277385067805555, 0.325495855236478, 0.3232498036481418, 0.321000366990486, 0.31874756042064456, 0.31649139927802084, 0.3142318990843383, 0.3119690755436712, 0.3097029445424563, 0.3074335221494823, 0.30516082461586, 0.3028848683749715, 0.30060567004239525, 0.2983232464158153, 0.2960376144749028, 0.2937487913811817, 0.2914567944778669, 0.28916164128968724, 0.2868633495226782, 0.2845619370639609, 0.2822574219814912, 0.27994982252379114, 0.2776391571196562, 0.2753254443778389, 0.2730087030867106, 0.2706889522138995, 0.26836621090590695, 0.2660404984876964, 0.26371183446226626, 0.26138023851018954, 0.2590457304891398, 0.2567083304333857, 0.254368058553266, 0.25202493523463876, 0.24967898103830768, 0.24733021669942434, 0.24497866312686398, 0.24262434140258154, 0.2402672727809386, 0.23790747868800988, 0.2355449807208632, 0.23317980064681643, 0.2308119604026675, 0.22844148209390394, 0.2260683879938838, 0.2236927005429957, 0.2213144423477914, 0.21893363618009493, 0.21655030497608913, 0.21416447183537407, 0.21177616002000327, 0.20938539295349534, 0.20699219421982099, 0.20459658756236407, 0.2021985968828615, 0.19979824624031464, 0.19739555984988078, 0.19499056208173599, 0.19258327745991863, 0.1901737306611426, 0.1877619465135934, 0.18534794999569465, 0.1829317662348539, 0.18051342050618369, 0.17809293823119757, 0.1756703449764858, 0.17324566645236505, 0.170818928511504, 0.16839015714753, 0.16595937849360629, 0.16352661882099306, 0.16109190453758052, 0.1586552621864016, 0.15621671844412155, 0.15377630011950813, 0.15133403415187247, 0.14888994760949725, 0.14644406768803547, 0.143996421708892, 0.14154703711758276, 0.13909594148207116, 0.1366431624910871, 0.13418872795242062, 0.13173266579119897, 0.12927500404814293, 0.12681577087780002, 0.12435499454676138, 0.12189270343185855, 0.11942892601833832, 0.11696369089802386, 0.11449702676745001, 0.11202896242598775, 0.10955952677394411, 0.10708874881064878, 0.1046166576325196, 0.10214328243111426, 0.09966865249116179, 0.0971927971885805, 0.0947157459884757, 0.09223752844312598, 0.0897581741899504, 0.08727771294946123, 0.08479617452320289, 0.082313588791674, 0.07982998571223723, 0.07734539531701434, 0.07485984771076674, 0.072373373068765, 0.06988600163464263, 0.06739776371823956, 0.06490868969343333, 0.06241880999595723, 0.059928155121207756, 0.05743675562204164, 0.054944642106561456, 0.05245184523589109, 0.04995839572194275, 0.04746432432517234, 0.044969661852327376, 0.04247443915418671, 0.03997868712328986, 0.037482436691661396, 0.03498571882852558, 0.032488564538016115, 0.02999100485687795, 0.02749307085216258, 0.02499479361892021, 0.022496204277883892, 0.01999733397315051, 0.01749821386985651, 0.014998875151850674, 0.012499349019361686, 0.009999666686665189, 0.007499859379745655, 0.004999958333958227, 0.002499994791686121};
-//
-//   private final int[][] MAP=
-//            {
-//                    {2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,1,1,2,2},
-//                    {2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,2},
-//                    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1},
-//                    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,2,2,1},
-//                    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,2},
-//                    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,1,0,0,0,0,1},
-//                    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-//                    {2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-//                    {2,2,1,1,1,1,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-//                    {1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-//                    {2,2,1,2,2,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-//                    {2,0,0,0,2,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-//                    {1,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-//                    {1,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-//                    {1,0,0,0,2,1,2,0,0,0,0,0,2,1,2,0,0,0,0,0,0,0,0,0,0,1},
-//                    {1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,1},
-//                    {1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,2},
-//                    {1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,2,1,1,1,1,2,2},
-//                    {1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,1,1,0,0,0,0,1},
-//                    {1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,2,1,1,1,1,2,2},
-//                    {1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,2},
-//                    {2,0,0,0,0,0,0,0,0,0,0,0,2,0,2,0,0,0,0,0,0,0,0,0,0,2},
-//                    {2,2,1,1,1,1,1,1,1,1,1,2,2,1,2,2,1,1,1,1,1,1,1,1,2,2}
-//            };
-//
-//    private final int BLOCK_SIZE = 400;
-//    private final int WALL_HEIGHT = 600;
-//
-//    private int Fps = 60;
-//
-//    public GamePanel(){
-//        this.setPreferredSize(new Dimension(WINDOW_WIDTH, WINDOW_HEIGHT));
-//        this.setBackground(Color.black);
-//        this.setDoubleBuffered(true);
-//        this.addKeyListener(keyHandler);
-//        this.setFocusable(true);
-//    }
-//
-//    Thread gameThread;
-//
-//    public void startGame(){
-//        gameThread = new Thread(this);
-//        gameThread.start();
-//    }
-//
-//    @Override
-//    public void run() {
-//
-//        double drawInterval = 1000000000 / Fps;
-//        double nextDrawTime = System.nanoTime() + drawInterval;
-//
-//        while (gameThread != null){
-//            update();
-//            repaint();
-//
-//            try {
-//                double remainingTime = (nextDrawTime - System.nanoTime()) / 1000000;
-//                if(remainingTime < 0 ) remainingTime = 0;
-//                Thread.sleep((long) remainingTime);
-//                nextDrawTime += drawInterval;
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
+//                if(Math.toDegrees(Math.acos((dot.getX() * (viewPoint.getX() - camera.getX()) + dot.getY() * (viewPoint.getY() - camera.getY()) + dot.getZ() * (viewPoint.getZ() - camera.getZ())) / (Math.sqrt(dot.getX() * dot.getX() + dot.getY() * dot.getY() + dot.getZ() * dot.getZ())) / Math.sqrt((viewPoint.getX() - camera.getX()) * (viewPoint.getX() - camera.getX()) + (viewPoint.getY() - camera.getY()) * (viewPoint.getY() - camera.getY()) + (viewPoint.getZ() - camera.getZ()) * (viewPoint.getZ() - camera.getZ())))) > 90) visible = false;
 //            }
+//            if(!visible) continue;
+
+
+
+            Dot normal = getNormal(triangleRotated);
+
+            if (normal.getX() * (triangleRotated.getDot1().getX() - camera.getX()) + normal.getY() * (triangleRotated.getDot1().getY() - camera.getY()) + normal.getZ() * (triangleRotated.getDot1().getZ() - camera.getZ()) > 0.0) {
+
+                //проэкция треугольника на плоскость (3д -> 2д)
+                Triangle triangleProjection = new Triangle(multiplyProjection(triangleRotated.getDot1(), projectionMatrix), multiplyProjection(triangleRotated.getDot2(), projectionMatrix), multiplyProjection(triangleRotated.getDot3(), projectionMatrix));
+
+                triangleProjection.getDot1().setX((triangleProjection.getDot1().getX() + 1.0) * WINDOW_WIDTH * 0.5);
+                triangleProjection.getDot1().setY((triangleProjection.getDot1().getY() + 1.0) * WINDOW_HEIGHT * 0.5);
+                triangleProjection.getDot2().setX((triangleProjection.getDot2().getX() + 1.0) * WINDOW_WIDTH * 0.5);
+                triangleProjection.getDot2().setY((triangleProjection.getDot2().getY() + 1.0) * WINDOW_HEIGHT * 0.5);
+                triangleProjection.getDot3().setX((triangleProjection.getDot3().getX() + 1.0) * WINDOW_WIDTH * 0.5);
+                triangleProjection.getDot3().setY((triangleProjection.getDot3().getY() + 1.0) * WINDOW_HEIGHT * 0.5);
+
+                double dotProduct = normal.getX() * light.getX() + normal.getY() * light.getY() + normal.getZ() * light.getZ();
+
+                Triangle tr = new Triangle(triangleProjection);
+                trianglesWD.put(tr,dotProduct );
+                triangles.add(tr);
+            }
+
+        }
+        triangles.sort((t1, t2) ->{
+            double z1 = (t1.getDot1().getZ() + t1.getDot2().getZ() + t1.getDot3().getZ()) / 3;
+            double z2 = (t2.getDot1().getZ() + t2.getDot2().getZ() + t2.getDot3().getZ()) / 3;
+            if(z1 > z2) {
+                return -1;
+            } else if (z1 < z2) {
+                return 1;
+            } else return 0;
+        });
+        for(Triangle triangle : triangles){
+            double dotProduct = trianglesWD.get(triangle);
+
+            int x[] = {(int)triangle.getDot1().getX(),(int)triangle.getDot2().getX(), (int)triangle.getDot3().getX()};
+            int y[] = {(int)triangle.getDot1().getY(),(int)triangle.getDot2().getY(), (int)triangle.getDot3().getY()};
+
+            g2.setColor(new Color(0, 0, 255));
+            g2.fillPolygon(x, y, 3);
+            g2.setColor(new Color(0, 0, 0, dotProduct < 0 ? (int)(-dotProduct * 150) : 150));
+            g2.fillPolygon(x, y, 3);
+        }
+        g2.dispose();
+    }
+
+
+    public Dot multiplyProjection(Dot i, double[][] m){
+        Dot o = new Dot();
+        o.setX(i.getX() * m[0][0] + i.getY() * m[1][0] + i.getZ() * m[2][0] + m[3][0]);
+        o.setY(i.getX() * m[0][1] + i.getY() * m[1][1] + i.getZ() * m[2][1] + m[3][1]);
+        o.setZ(i.getX() * m[0][2] + i.getY() * m[1][2] + i.getZ() * m[2][2] + m[3][2]);
+        double w =i.getX() * m[0][3] + i.getY() * m[1][3] + i.getZ() * m[2][3] + m[3][3];
+        if(w != 0.0){
+            o.setX(o.getX() / w);
+            o.setY(o.getY() / w);
+            o.setZ(o.getZ() / w);
+        }
+        return o;
+    }
+
+    //получения вектора нормали
+    public Dot getNormal(Triangle triangle){
+        double x1 = triangle.getDot2().getX() - triangle.getDot1().getX();
+        double y1 = triangle.getDot2().getY() - triangle.getDot1().getY();
+        double z1 = triangle.getDot2().getZ() - triangle.getDot1().getZ();
+
+        double x2 = triangle.getDot3().getX() - triangle.getDot1().getX();
+        double y2 = triangle.getDot3().getY() - triangle.getDot1().getY();
+        double z2 = triangle.getDot3().getZ() - triangle.getDot1().getZ();
+
+        Dot dot = new Dot((y1 * z2 - z1 * y2), (z1 * x2 - x1 * z2), (x1 * y2 - y1 * x2));
+
+        double length  = Math.sqrt(dot.getX() * dot.getX() + dot.getY() * dot.getY() + dot.getZ() * dot.getZ());
+        dot.setX( dot.getX() / length);
+        dot.setY( dot.getY() / length);
+        dot.setZ( dot.getZ() / length);
+
+        return dot;
+    }
+
+    //перевод координат точки из мировой системы, в координаты системы камеры
+    public Dot getDotRelationCamera(Dot i){
+        Dot o = new Dot();
+        //вектор направленный из камеры на точку
+        Dot d = new Dot();
+        d.setX(i.getX() - camera.getX());
+        d.setY(i.getY() - camera.getY());
+        d.setZ(i.getZ() - camera.getZ());
+
+        //координата z для камеры
+        double z = (d.getX() * viewPoint.getX() + d.getY() * viewPoint.getY() + d.getZ() * viewPoint.getZ()) / Math.sqrt(viewPoint.getX() * viewPoint.getX() + viewPoint.getY() * viewPoint.getY() + viewPoint.getZ() * viewPoint.getZ());
+        double x = (d.getX() * cameraX.getX() + d.getY() * cameraX.getY() + d.getZ() * cameraX.getZ()) / Math.sqrt(cameraX.getX() * cameraX.getX() + cameraX.getY() * cameraX.getY() + cameraX.getZ() * cameraX.getZ());
+        double y = (d.getX() * cameraY.getX() + d.getY() * cameraY.getY() + d.getZ() * cameraY.getZ()) / Math.sqrt(cameraY.getX() * cameraY.getX() + cameraY.getY() * cameraY.getY() + cameraY.getZ() * cameraY.getZ());
+        //далее нужно спроэктировать этот вектор на вектор направления взгляда, определить длинну проекции -> длинна проекчии Z для дальнейших расчетов проэкции точки на экран
+        o.setZ(z);
+        o.setX(x);
+        o.setY(y);
+        return o;
+    }
+
+//    public boolean checkVisibility(Triangle triangle){
+//        boolean b = true;
+//
+//        for(Dot dot : triangle.getAllDots()){
+////            //проекция точки на плоскость xz амеры
+////            Dot dotX = new Dot(dot.getX() - camera.getX(), camera.getY(), dot.getZ() - camera.getZ());
+////            //проекция точки на плоскость yz амеры
+////            Dot dotY = new Dot ( camera.getX(), dot.getY() - camera.getZ(), dot.getZ() - camera.getZ());
+//
+//            Dot viewDot = new Dot(viewPoint.getX() - camera.getX(), viewPoint.getY() - camera.getY(), viewPoint.getZ() - camera.getZ() - 1);
+//            if(     Math.toDegrees(Math.acos((dot.getX() * viewDot.getX() + dot.getY() * viewDot.getY() + dot.getZ() * viewDot.getZ()) / (Math.sqrt(dot.getX() * dot.getX() + dot.getY() * dot.getY() + dot.getZ() * dot.getZ()) * Math.sqrt(viewDot.getX() * viewDot.getX() + viewDot.getY() * viewDot.getY() + viewDot.getZ() *viewDot.getZ())))) >= 85) b = false;
+//
+//
+//
+////            if(     Math.toDegrees(Math.acos((dotX.getX() * viewDot.getX() + dotX.getY() * viewDot.getY() + dotX.getZ() * viewDot.getZ()) / (Math.sqrt(dotX.getX() * dotX.getX() + dotX.getY() * dotX.getY() + dotX.getZ() * dotX.getZ()) * Math.sqrt(viewDot.getX() * viewDot.getX() + viewDot.getY() * viewDot.getY() + viewDot.getZ() *viewDot.getZ())))) > 45 ||
+////                    Math.toDegrees(Math.acos((dotY.getX() * viewDot.getX() + dotY.getY() * viewDot.getY() + dotY.getZ() * viewDot.getZ()) / (Math.sqrt(dotY.getX() * dotY.getX() + dotY.getY() * dotY.getY() + dotY.getZ() * dotY.getZ()) * Math.sqrt(viewDot.getX() * viewDot.getX() + viewDot.getY() * viewDot.getY() + viewDot.getZ() *viewDot.getZ())))) > 45) b =false;
 //        }
+//
+//        return b;
 //    }
-//
-//    public void update(){
-//
-//
-//
-//        if(keyHandler.leftPressed){
-//            POV-=2;
-//            if(POV == -1) POV = 359;
-//        }
-//        if(keyHandler.rightPressed){
-//            POV+=2;
-//            if(POV == 360) POV = 0;
-//        }
-//
-//        if(keyHandler.upPressed){
-//                cameraPosX += 30 * Math.sin(Math.toRadians(POV));
-//                cameraPosY -= 30 * Math.cos(Math.toRadians(POV));
-//
-//                if(MAP[(int)(cameraPosX / BLOCK_SIZE)][(int)(cameraPosY / BLOCK_SIZE)] != 0){
-//                    cameraPosX -= 30 * Math.sin(Math.toRadians(POV));
-//                    cameraPosY += 30 * Math.cos(Math.toRadians(POV));
-//                }
-//        }
-//
-//        if(keyHandler.downPressed){
-//            cameraPosX -= 30 * Math.sin(Math.toRadians(POV));
-//            cameraPosY += 30 * Math.cos(Math.toRadians(POV));
-//            if(MAP[(int)(cameraPosX / BLOCK_SIZE)][(int)(cameraPosY / BLOCK_SIZE)] != 0){
-//                cameraPosX += 30 * Math.sin(Math.toRadians(POV));
-//                cameraPosY -= 30 * Math.cos(Math.toRadians(POV));
-//            }
-//        }
-//    }
-//
-//    public void paintComponent(Graphics g){
-//        super.paintComponent(g);
-//        Graphics2D g2 = (Graphics2D) g;
-//
-//        for(int i = 0; i <= 800; i+=1){
-//            boolean floor = false;
-//            for(visibleDistance = 0; visibleDistance <= MAX_VISIBLE_DISTANCE; visibleDistance += 5){
-//                int blockX;
-//                int blockY;
-//
-//                if(i < 400) {
-//                    blockX = (int) ((cameraPosX + visibleDistance * Math.sin(Math.toRadians(POV) - ANGLES[i])) / BLOCK_SIZE);
-//                    blockY = (int) ((cameraPosY - visibleDistance * Math.cos(Math.toRadians(POV) - ANGLES[i])) / BLOCK_SIZE);
-//                }
-//                 else if(i > 400){
-//                    blockX = (int) ((cameraPosX + visibleDistance * Math.sin(Math.toRadians(POV) + ANGLES[800 - i])) / BLOCK_SIZE);
-//                    blockY = (int) ((cameraPosY - visibleDistance * Math.cos(Math.toRadians(POV) + ANGLES[800 - i])) / BLOCK_SIZE);
-//                }
-//                else{
-//                    blockX = (int) ((cameraPosX + visibleDistance * Math.sin(Math.toRadians(POV))) / BLOCK_SIZE);
-//                    blockY = (int) ((cameraPosY - visibleDistance * Math.cos(Math.toRadians(POV))) / BLOCK_SIZE);
-//                }
-//
-//                if(!floor && MAP[blockX][blockY] == 0){
-//
-//                    for(int j = 0 ; j <= 300; j +=5){
-//                        g2.setColor(new Color(75, 1, 110, j * 200 / 300));
-//                        g2.drawLine(i,  600 - j ,i, 600 - j + 4);
-//                    }
-//                        floor = true;
-//                }
-//
-//                if(MAP[blockX][blockY] == 1){
-//                    g.setColor(new Color(100 - visibleDistance /100,100 - visibleDistance /100, 130));
-////                    double y = (double) WALL_HEIGHT * displayDistance / (double)visibleDistance;
-////                    g2.drawLine(i, (int)((double)300 - y)  ,i, (int)(300 + y) );
-//                    double y;
-//
-//                    if(i < 400) {
-//                        y = (double) WALL_HEIGHT *  displayDistance/ (double)((visibleDistance - (400 / Math.cos(ANGLES[i]))) * Math.cos(ANGLES[i]));
-//                    }
-//                    else if(i > 400){
-//                        y = (double) WALL_HEIGHT *  displayDistance/ (double)((visibleDistance - (400 / Math.cos(ANGLES[800 - i]))) * Math.cos(ANGLES[800 - i]));
-//                    }
-//                    else{
-//                        y = (double) WALL_HEIGHT * displayDistance / (double)(visibleDistance );
-//                    }
-//
-//                    g2.drawLine(i, (int)((double)300 - y)  ,i, (int)(300 + y) );
-//                    break;
-//                }
-//                if(MAP[blockX][blockY] == 2){
-//                    g.setColor(Color.cyan);
-////                    double y = (double) WALL_HEIGHT * displayDistance / (double)visibleDistance;
-////                    g2.drawLine(i, (int)((double)300 - y)  ,i, (int)(300 + y) );
-//                    double y;
-//
-//                    if(i < 400) {
-//                        y = (double) WALL_HEIGHT *  displayDistance/ (double)((visibleDistance - (400 / Math.cos(ANGLES[i]))) * Math.cos(ANGLES[i]));
-//                    }
-//                    else if(i > 400){
-//                        y = (double) WALL_HEIGHT *  displayDistance/ (double)((visibleDistance - (400 / Math.cos(ANGLES[800 - i]))) * Math.cos(ANGLES[800 - i]));
-//                    }
-//                    else{
-//                        y = (double) WALL_HEIGHT * displayDistance / (double)(visibleDistance);
-//                    }
-//
-//                    g2.drawLine(i, (int)((double)300 - y)  ,i, (int)(300 + y) );
-//                    break;
-//                }
-//            }
-//        }
-//        g2.dispose();
-//    }
-//}
+
+}
+

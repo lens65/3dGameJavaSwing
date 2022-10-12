@@ -9,6 +9,10 @@ public class KeyHandler implements KeyListener {
     public boolean downPressed;
     public boolean leftPressed;
     public boolean rightPressed;
+    public boolean moveForwardPressed;
+    public boolean moveBackPressed;
+    public boolean moveRightPressed;
+    public boolean moveLeftPressed;
 
     @Override
     public void keyTyped(KeyEvent e) {}
@@ -30,6 +34,18 @@ public class KeyHandler implements KeyListener {
         if(code == KeyEvent.VK_D){
             rightPressed = true;
         }
+        if(code == KeyEvent.VK_UP){
+            moveForwardPressed = true;
+        }
+        if(code == KeyEvent.VK_DOWN){
+            moveBackPressed = true;
+        }
+        if(code == KeyEvent.VK_RIGHT){
+            moveRightPressed = true;
+        }
+        if(code == KeyEvent.VK_LEFT){
+            moveLeftPressed = true;
+        }
     }
 
     @Override
@@ -47,6 +63,18 @@ public class KeyHandler implements KeyListener {
         }
         if(code == KeyEvent.VK_D){
             rightPressed = false;
+        }
+        if(code == KeyEvent.VK_UP){
+            moveForwardPressed = false;
+        }
+        if(code == KeyEvent.VK_DOWN){
+            moveBackPressed = false;
+        }
+        if(code == KeyEvent.VK_RIGHT){
+            moveRightPressed = false;
+        }
+        if(code == KeyEvent.VK_LEFT){
+            moveLeftPressed = false;
         }
     }
 
