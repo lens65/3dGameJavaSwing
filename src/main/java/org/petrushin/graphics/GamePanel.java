@@ -22,7 +22,7 @@ public class GamePanel extends JPanel implements Runnable{
     private double a = (double) WINDOW_HEIGHT/(double) WINDOW_WIDTH;
     private double t = 1.0 / Math.tan(Math.toRadians(fov/2));
     private double maxDistance = 1000.0;
-    private double distanceToDisplay = 1.0;
+    private double distanceToDisplay = 10.1;
     private double z11 = maxDistance / (maxDistance - distanceToDisplay);
     private double z22 = (maxDistance * distanceToDisplay) / (maxDistance - distanceToDisplay);
     //точка положения камеры в мировой системе координат
@@ -36,16 +36,15 @@ public class GamePanel extends JPanel implements Runnable{
     //Y вектор системы координат камеры
     private Dot cameraY = new Dot(0.0, -1.0, 0.0);
 
+
+
     private Dot[] cameraDots = {camera, viewPoint, cameraX, cameraY};
 
     //X, Y и Z ветора мировой системы. Они не изменны
     private final Dot worldX = new Dot(1.0, 0.0, 0.0);
     private final Dot worldY = new Dot(0.0, -1.0, 0.0);
     private final Dot worldZ = new Dot(0.0, 0.0, 1.0);
-    //ветора движения вперед, вправо, вверх
-    private final Dot moveForward = new Dot(0.0, 0.0, 0.1);
-    private final Dot moveRight = new Dot(0.1, 0.0, 0.0);
-    private final Dot moveUp = new Dot(0.0, 0.1, 0.0);
+
 
 
 
@@ -56,7 +55,6 @@ public class GamePanel extends JPanel implements Runnable{
     private double[][] projectionMatrix = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
     //атрица поворота
     private double[][] matrixRot = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
-    private double[][] matrixRot1 = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
 
     private double alpha = 0.0;
     private double beta = 0.0;
@@ -132,57 +130,30 @@ public class GamePanel extends JPanel implements Runnable{
         }
 
         if(keyHandler.upPressed){
-            beta--;
-            if(beta < -90) beta = -90;
-            rotateCamera();
-        }
-
-        if(keyHandler.downPressed){
             beta++;
             if(beta > 90) beta = 90;
             rotateCamera();
         }
-        if(keyHandler.moveForwardPressed){
-            Dot dot = new Dot(viewPoint.getX() * 0.00001, viewPoint.getY() * 0.00001, viewPoint.getY() * 0.00001);
-            camera.setX(camera.getX() + viewPoint.getX() - dot.getX());
-            camera.setY(camera.getY() + viewPoint.getY() - dot.getY());
-            camera.setZ(camera.getZ() + viewPoint.getZ() - dot.getZ());
-            viewPoint.setX(dot.getX());
-            viewPoint.setY(dot.getY());
-            viewPoint.setZ(dot.getZ());
 
+        if(keyHandler.downPressed){
+            beta--;
+            if(beta < -90) beta =  -90;
+            rotateCamera();
+        }
+        if(keyHandler.moveForwardPressed){
+            moveDots(viewPoint, true);
             rotateCamera();
         }
         if(keyHandler.moveBackPressed){
-            Dot dot = new Dot(viewPoint.getX() / 100000, viewPoint.getY() / 100000, viewPoint.getY() / 100000);
-            camera.setX(camera.getX() - viewPoint.getX() - dot.getX());
-            camera.setY(camera.getY() - viewPoint.getY() - dot.getY());
-            camera.setZ(camera.getZ() - viewPoint.getZ() - dot.getZ());
-            viewPoint.setX(dot.getX());
-            viewPoint.setY(dot.getY());
-            viewPoint.setZ(dot.getZ());
-
+            moveDots(viewPoint, false);
             rotateCamera();
         }
         if(keyHandler.moveRightPressed){
-            Dot dot = new Dot(cameraX.getX() * 0.00001, cameraX.getY() * 0.00001, cameraX.getY() * 0.00001);
-            camera.setX(camera.getX() + cameraX.getX() - dot.getX());
-            camera.setY(camera.getY() + cameraX.getY() - dot.getY());
-            camera.setZ(camera.getZ() + cameraX.getZ() - dot.getZ());
-            cameraX.setX(dot.getX());
-            cameraX.setY(dot.getY());
-            cameraX.setZ(dot.getZ());
-
+            moveDots(cameraX, true);
             rotateCamera();
         }
         if(keyHandler.moveLeftPressed){
-            Dot dot = new Dot(cameraX.getX() / 100000, cameraX.getY() / 100000, cameraX.getY() / 100000);
-            camera.setX(camera.getX() - cameraX.getX() - dot.getX());
-            camera.setY(camera.getY() - cameraX.getY() - dot.getY());
-            camera.setZ(camera.getZ() - cameraX.getZ() - dot.getZ());
-            cameraX.setX(dot.getX());
-            cameraX.setY(dot.getY());
-            cameraX.setZ(dot.getZ());
+            moveDots(cameraX, false);
             rotateCamera();
         }
     }
@@ -218,28 +189,52 @@ public class GamePanel extends JPanel implements Runnable{
         matrixRot[3][3] = 1;
 
 
-
-
         cameraX.changeCoordinate(multiplyProjection(worldX, matrixRot));
         viewPoint.changeCoordinate(multiplyProjection(worldZ, matrixRot));
         cameraY.changeCoordinate(multiplyProjection(worldY, matrixRot));
+    }
+
+    //перемещение камеры и векторов системы камеры
+    private void moveDots(Dot i, boolean dir){
+        i.setX(i.getX() / 10);
+        i.setY(i.getY() / 10);
+        i.setZ(i.getZ()  / 10);
+        //проэкция вектора по которому перемещаемся на мировые вектора, что бы определирть величину смещения точек камеры
+        double distanceX = (i.getX() * worldX.getX() + i.getY() * worldX.getY() + i.getZ() * worldX.getZ()) / Math.sqrt(worldX.getX() * worldX.getX() + worldX.getY() * worldX.getY() + worldX.getZ() * worldX.getZ());
+        double distanceY = (i.getX() * worldY.getX() + i.getY() * worldY.getY() + i.getZ() * worldY.getZ()) / Math.sqrt(worldY.getX() * worldY.getX() + worldY.getY() * worldY.getY() + worldY.getZ() * worldY.getZ());
+        double distanceZ = (i.getX() * worldZ.getX() + i.getY() * worldZ.getY() + i.getZ() * worldZ.getZ()) / Math.sqrt(worldZ.getX() * worldZ.getX() + worldZ.getY() * worldZ.getY() + worldZ.getZ() * worldZ.getZ());
+
+        if(dir) {
+            for (Dot dot : cameraDots) {
+                dot.setX(dot.getX() + distanceX);
+                dot.setY(dot.getY() - distanceY);
+                dot.setZ(dot.getZ() + distanceZ);
+            }
+        } else {
+            for (Dot dot : cameraDots) {
+                dot.setX(dot.getX() - distanceX);
+                dot.setY(dot.getY() + distanceY);
+                dot.setZ(dot.getZ() - distanceZ);
+            }
+        }
     }
 
     public void paintComponent(Graphics g){
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
 
+
         Map<Triangle, Double> trianglesWD = new HashMap<>();
         List<Triangle> triangles = new ArrayList<>();
 
 
-        for(Triangle triangle : teapot.getTriangles()) {
+        for(Triangle triangle : mountain.getTriangles()) {
             //координаты треугольника переведенные из мировой системы в систему камеры
             Triangle triangleRotated = new Triangle(getDotRelationCamera(triangle.getDot1()), getDotRelationCamera(triangle.getDot2()), getDotRelationCamera(triangle.getDot3()));
 
             //в теории не должно прорисовывать объекты которые за камерой
 
-//            if(!checkVisibility(triangleRotated)) continue;
+            if(!checkVisibility(triangleRotated)) continue;
 
 //            if(triangle.getDot1().getZ() <= camera.getZ() || triangle.getDot2().getZ() <= camera.getZ() || triangle.getDot3().getZ() <= camera.getZ()) continue;
 //            boolean visible = true;
@@ -351,26 +346,26 @@ public class GamePanel extends JPanel implements Runnable{
         return o;
     }
 
-//    public boolean checkVisibility(Triangle triangle){
-//        boolean b = true;
-//
-//        for(Dot dot : triangle.getAllDots()){
-////            //проекция точки на плоскость xz амеры
-////            Dot dotX = new Dot(dot.getX() - camera.getX(), camera.getY(), dot.getZ() - camera.getZ());
-////            //проекция точки на плоскость yz амеры
-////            Dot dotY = new Dot ( camera.getX(), dot.getY() - camera.getZ(), dot.getZ() - camera.getZ());
-//
-//            Dot viewDot = new Dot(viewPoint.getX() - camera.getX(), viewPoint.getY() - camera.getY(), viewPoint.getZ() - camera.getZ() - 1);
-//            if(     Math.toDegrees(Math.acos((dot.getX() * viewDot.getX() + dot.getY() * viewDot.getY() + dot.getZ() * viewDot.getZ()) / (Math.sqrt(dot.getX() * dot.getX() + dot.getY() * dot.getY() + dot.getZ() * dot.getZ()) * Math.sqrt(viewDot.getX() * viewDot.getX() + viewDot.getY() * viewDot.getY() + viewDot.getZ() *viewDot.getZ())))) >= 85) b = false;
-//
-//
-//
-////            if(     Math.toDegrees(Math.acos((dotX.getX() * viewDot.getX() + dotX.getY() * viewDot.getY() + dotX.getZ() * viewDot.getZ()) / (Math.sqrt(dotX.getX() * dotX.getX() + dotX.getY() * dotX.getY() + dotX.getZ() * dotX.getZ()) * Math.sqrt(viewDot.getX() * viewDot.getX() + viewDot.getY() * viewDot.getY() + viewDot.getZ() *viewDot.getZ())))) > 45 ||
-////                    Math.toDegrees(Math.acos((dotY.getX() * viewDot.getX() + dotY.getY() * viewDot.getY() + dotY.getZ() * viewDot.getZ()) / (Math.sqrt(dotY.getX() * dotY.getX() + dotY.getY() * dotY.getY() + dotY.getZ() * dotY.getZ()) * Math.sqrt(viewDot.getX() * viewDot.getX() + viewDot.getY() * viewDot.getY() + viewDot.getZ() *viewDot.getZ())))) > 45) b =false;
-//        }
-//
-//        return b;
-//    }
+    public boolean checkVisibility(Triangle triangle){
+        boolean b = true;
+
+        for(Dot dot : triangle.getAllDots()){
+            //проекция точки на плоскость xz амеры
+            Dot dotX = new Dot(dot.getX() - camera.getX(), camera.getY(), dot.getZ() - camera.getZ());
+            //проекция точки на плоскость yz амеры
+            Dot dotY = new Dot ( camera.getX(), dot.getY() - camera.getZ(), dot.getZ() - camera.getZ());
+
+            Dot viewDot = new Dot(viewPoint.getX() - camera.getX(), viewPoint.getY() - camera.getY(), viewPoint.getZ() - camera.getZ());
+            if(     Math.toDegrees(Math.acos((dot.getX() * viewDot.getX() + dot.getY() * viewDot.getY() + dot.getZ() * viewDot.getZ()) / (Math.sqrt(dot.getX() * dot.getX() + dot.getY() * dot.getY() + dot.getZ() * dot.getZ()) * Math.sqrt(viewDot.getX() * viewDot.getX() + viewDot.getY() * viewDot.getY() + viewDot.getZ() *viewDot.getZ())))) >= 45) b = false;
+
+
+
+//            if(     Math.toDegrees(Math.acos((dotX.getX() * viewDot.getX() + dotX.getY() * viewDot.getY() + dotX.getZ() * viewDot.getZ()) / (Math.sqrt(dotX.getX() * dotX.getX() + dotX.getY() * dotX.getY() + dotX.getZ() * dotX.getZ()) * Math.sqrt(viewDot.getX() * viewDot.getX() + viewDot.getY() * viewDot.getY() + viewDot.getZ() *viewDot.getZ())))) > 45 ||
+//                    Math.toDegrees(Math.acos((dotY.getX() * viewDot.getX() + dotY.getY() * viewDot.getY() + dotY.getZ() * viewDot.getZ()) / (Math.sqrt(dotY.getX() * dotY.getX() + dotY.getY() * dotY.getY() + dotY.getZ() * dotY.getZ()) * Math.sqrt(viewDot.getX() * viewDot.getX() + viewDot.getY() * viewDot.getY() + viewDot.getZ() *viewDot.getZ())))) > 45) b =false;
+        }
+
+        return b;
+    }
 
 }
 
