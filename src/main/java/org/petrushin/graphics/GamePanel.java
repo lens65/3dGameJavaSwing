@@ -178,6 +178,7 @@ public class GamePanel extends JPanel implements Runnable{
 //        matrixRot[2][2] = Math.cos(Math.toRadians(beta));
 //        matrixRot[3][3] = 1;
         //произмедение 2х последних матриц
+        //неправильно работает изменение пложения в отношении oY
         matrixRot[0][0] = Math.cos(Math.toRadians(alpha));
         matrixRot[0][1] = Math.sin(Math.toRadians(alpha)) * Math.sin(Math.toRadians(beta));
         matrixRot[0][2] = Math.sin(Math.toRadians(alpha)) * Math.cos(Math.toRadians(beta));
@@ -229,31 +230,20 @@ public class GamePanel extends JPanel implements Runnable{
 
 
         for(Triangle triangle : teapot.getTriangles()) {
+
             //координаты треугольника переведенные из мировой системы в систему камеры
             Triangle triangleRotated = new Triangle(getDotRelationCamera(triangle.getDot1()), getDotRelationCamera(triangle.getDot2()), getDotRelationCamera(triangle.getDot3()));
 
-            //в теории не должно прорисовывать объекты которые за камерой
-
-//            if(!checkVisibility(triangleRotated)) continue;
-
-//            if(triangle.getDot1().getZ() <= camera.getZ() || triangle.getDot2().getZ() <= camera.getZ() || triangle.getDot3().getZ() <= camera.getZ()) continue;
-//            boolean visible = true;
-//            for(Dot dot : triangleRotated.getAllDots()){
-//
-//                if(Math.toDegrees(Math.acos((dot.getX() * (viewPoint.getX() - camera.getX()) + dot.getY() * (viewPoint.getY() - camera.getY()) + dot.getZ() * (viewPoint.getZ() - camera.getZ())) / (Math.sqrt(dot.getX() * dot.getX() + dot.getY() * dot.getY() + dot.getZ() * dot.getZ())) / Math.sqrt((viewPoint.getX() - camera.getX()) * (viewPoint.getX() - camera.getX()) + (viewPoint.getY() - camera.getY()) * (viewPoint.getY() - camera.getY()) + (viewPoint.getZ() - camera.getZ()) * (viewPoint.getZ() - camera.getZ())))) > 90) visible = false;
-//            }
-//            if(!visible) continue;
-
-
-
             Dot normal = getNormal(triangleRotated);
 
-
             if ((normal.getX() - camera.getX()) * (triangleRotated.getDot1().getX() - camera.getX()) + (normal.getY() - camera.getY()) * (triangleRotated.getDot1().getY() - camera.getY()) + (normal.getZ() - camera.getZ()) * (triangleRotated.getDot1().getZ() - camera.getZ())> 0.0) {
-
-
                 //проэкция треугольника на плоскость (3д -> 2д)
                 Triangle triangleProjection = new Triangle(multiplyProjection(triangleRotated.getDot1(), projectionMatrix), multiplyProjection(triangleRotated.getDot2(), projectionMatrix), multiplyProjection(triangleRotated.getDot3(), projectionMatrix));
+
+                if (    Math.abs(triangleProjection.getDot1().getX()) > 1.0 || Math.abs(triangleProjection.getDot1().getY()) > 1.0 ||
+                        Math.abs(triangleProjection.getDot2().getX()) > 1.0 || Math.abs(triangleProjection.getDot2().getY()) > 1.0 ||
+                        Math.abs(triangleProjection.getDot3().getX()) > 1.0 || Math.abs(triangleProjection.getDot3().getY()) > 1.0
+                )   continue;
 
                 triangleProjection.getDot1().setX((triangleProjection.getDot1().getX() + 1.0) * WINDOW_WIDTH * 0.5);
                 triangleProjection.getDot1().setY((triangleProjection.getDot1().getY() + 1.0) * WINDOW_HEIGHT * 0.5);
@@ -261,11 +251,6 @@ public class GamePanel extends JPanel implements Runnable{
                 triangleProjection.getDot2().setY((triangleProjection.getDot2().getY() + 1.0) * WINDOW_HEIGHT * 0.5);
                 triangleProjection.getDot3().setX((triangleProjection.getDot3().getX() + 1.0) * WINDOW_WIDTH * 0.5);
                 triangleProjection.getDot3().setY((triangleProjection.getDot3().getY() + 1.0) * WINDOW_HEIGHT * 0.5);
-
-//            int x[] = {(int)triangleProjection.getDot1().getX(),(int)triangleProjection.getDot2().getX(), (int)triangleProjection.getDot3().getX()};
-//            int y[] = {(int)triangleProjection.getDot1().getY(),(int)triangleProjection.getDot2().getY(), (int)triangleProjection.getDot3().getY()};
-//            g2.setColor(new Color(0, 0, 255));
-//            g2.drawPolygon(x, y, 3);
 
                 double dotProduct = normal.getX() * light.getX() + normal.getY() * light.getY() + normal.getZ() * light.getZ();
 
@@ -289,6 +274,7 @@ public class GamePanel extends JPanel implements Runnable{
 
             int x[] = {(int)triangle.getDot1().getX(),(int)triangle.getDot2().getX(), (int)triangle.getDot3().getX()};
             int y[] = {(int)triangle.getDot1().getY(),(int)triangle.getDot2().getY(), (int)triangle.getDot3().getY()};
+
 
             g2.setColor(new Color(0, 0, 255));
             g2.fillPolygon(x, y, 3);
@@ -351,27 +337,6 @@ public class GamePanel extends JPanel implements Runnable{
         o.setX(x);
         o.setY(y);
         return o;
-    }
-
-    public boolean checkVisibility(Triangle triangle){
-        boolean b = true;
-
-        for(Dot dot : triangle.getAllDots()){
-            //проекция точки на плоскость xz амеры
-            Dot dotX = new Dot(dot.getX() - camera.getX(), camera.getY(), dot.getZ() - camera.getZ());
-            //проекция точки на плоскость yz амеры
-            Dot dotY = new Dot ( camera.getX(), dot.getY() - camera.getZ(), dot.getZ() - camera.getZ());
-
-            Dot viewDot = new Dot(viewPoint.getX() - camera.getX(), viewPoint.getY() - camera.getY(), viewPoint.getZ() - camera.getZ());
-//            if(     Math.toDegrees(Math.acos((dot.getX() * viewDot.getX() + dot.getY() * viewDot.getY() + dot.getZ() * viewDot.getZ()) / (Math.sqrt(dot.getX() * dot.getX() + dot.getY() * dot.getY() + dot.getZ() * dot.getZ()) * Math.sqrt(viewDot.getX() * viewDot.getX() + viewDot.getY() * viewDot.getY() + viewDot.getZ() *viewDot.getZ())))) >= 45) b = false;
-
-
-
-//            if(     Math.toDegrees(Math.acos((dotX.getX() * viewDot.getX() + dotX.getY() * viewDot.getY() + dotX.getZ() * viewDot.getZ()) / (Math.sqrt(dotX.getX() * dotX.getX() + dotX.getY() * dotX.getY() + dotX.getZ() * dotX.getZ()) * Math.sqrt(viewDot.getX() * viewDot.getX() + viewDot.getY() * viewDot.getY() + viewDot.getZ() *viewDot.getZ())))) > 45 ||
-//                    Math.toDegrees(Math.acos((dotY.getX() * viewDot.getX() + dotY.getY() * viewDot.getY() + dotY.getZ() * viewDot.getZ()) / (Math.sqrt(dotY.getX() * dotY.getX() + dotY.getY() * dotY.getY() + dotY.getZ() * dotY.getZ()) * Math.sqrt(viewDot.getX() * viewDot.getX() + viewDot.getY() * viewDot.getY() + viewDot.getZ() *viewDot.getZ())))) > 45) b =false;
-        }
-
-        return b;
     }
 
 }
