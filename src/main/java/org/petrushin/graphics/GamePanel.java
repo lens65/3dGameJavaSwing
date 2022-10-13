@@ -36,16 +36,12 @@ public class GamePanel extends JPanel implements Runnable{
     //Y вектор системы координат камеры
     private Dot cameraY = new Dot(0.0, -1.0, 0.0);
 
-
-
     private Dot[] cameraDots = {camera, viewPoint, cameraX, cameraY};
 
     //X, Y и Z ветора мировой системы. Они не изменны
     private final Dot worldX = new Dot(1.0, 0.0, 0.0);
     private final Dot worldY = new Dot(0.0, -1.0, 0.0);
     private final Dot worldZ = new Dot(0.0, 0.0, 1.0);
-
-
 
 
     private Dot light = new Dot (0.0, 0.0, -1.0);
@@ -178,7 +174,6 @@ public class GamePanel extends JPanel implements Runnable{
 //        matrixRot[2][2] = Math.cos(Math.toRadians(beta));
 //        matrixRot[3][3] = 1;
         //произмедение 2х последних матриц
-        //неправильно работает изменение пложения в отношении oY
         matrixRot[0][0] = Math.cos(Math.toRadians(alpha));
         matrixRot[0][1] = Math.sin(Math.toRadians(alpha)) * Math.sin(Math.toRadians(beta));
         matrixRot[0][2] = Math.sin(Math.toRadians(alpha)) * Math.cos(Math.toRadians(beta));
@@ -193,6 +188,7 @@ public class GamePanel extends JPanel implements Runnable{
         cameraX.changeCoordinate(multiplyProjection(worldX, matrixRot));
         viewPoint.changeCoordinate(multiplyProjection(worldZ, matrixRot));
         cameraY.changeCoordinate(multiplyProjection(worldY, matrixRot));
+
     }
 
     //перемещение камеры и векторов системы камеры
@@ -204,7 +200,6 @@ public class GamePanel extends JPanel implements Runnable{
         double distanceX = (i.getX() * worldX.getX() + i.getY() * worldX.getY() + i.getZ() * worldX.getZ()) / Math.sqrt(worldX.getX() * worldX.getX() + worldX.getY() * worldX.getY() + worldX.getZ() * worldX.getZ());
         double distanceY = (i.getX() * worldY.getX() + i.getY() * worldY.getY() + i.getZ() * worldY.getZ()) / Math.sqrt(worldY.getX() * worldY.getX() + worldY.getY() * worldY.getY() + worldY.getZ() * worldY.getZ());
         double distanceZ = (i.getX() * worldZ.getX() + i.getY() * worldZ.getY() + i.getZ() * worldZ.getZ()) / Math.sqrt(worldZ.getX() * worldZ.getX() + worldZ.getY() * worldZ.getY() + worldZ.getZ() * worldZ.getZ());
-
         if(dir) {
             for (Dot dot : cameraDots) {
                 dot.setX(dot.getX() + distanceX);
@@ -224,10 +219,8 @@ public class GamePanel extends JPanel implements Runnable{
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
 
-
         Map<Triangle, Double> trianglesWD = new HashMap<>();
         List<Triangle> triangles = new ArrayList<>();
-
 
         for(Triangle triangle : teapot.getTriangles()) {
 
@@ -239,10 +232,10 @@ public class GamePanel extends JPanel implements Runnable{
             if ((normal.getX() - camera.getX()) * (triangleRotated.getDot1().getX() - camera.getX()) + (normal.getY() - camera.getY()) * (triangleRotated.getDot1().getY() - camera.getY()) + (normal.getZ() - camera.getZ()) * (triangleRotated.getDot1().getZ() - camera.getZ())> 0.0) {
                 //проэкция треугольника на плоскость (3д -> 2д)
                 Triangle triangleProjection = new Triangle(multiplyProjection(triangleRotated.getDot1(), projectionMatrix), multiplyProjection(triangleRotated.getDot2(), projectionMatrix), multiplyProjection(triangleRotated.getDot3(), projectionMatrix));
-
-                if (    Math.abs(triangleProjection.getDot1().getX()) > 1.0 || Math.abs(triangleProjection.getDot1().getY()) > 1.0 ||
-                        Math.abs(triangleProjection.getDot2().getX()) > 1.0 || Math.abs(triangleProjection.getDot2().getY()) > 1.0 ||
-                        Math.abs(triangleProjection.getDot3().getX()) > 1.0 || Math.abs(triangleProjection.getDot3().getY()) > 1.0
+                //не прорисовывать объект за "спиной"
+                if (    triangleProjection.getDot1().getZ() > 1 ||
+                        triangleProjection.getDot2().getZ() > 1 ||
+                        triangleProjection.getDot3().getZ() > 1
                 )   continue;
 
                 triangleProjection.getDot1().setX((triangleProjection.getDot1().getX() + 1.0) * WINDOW_WIDTH * 0.5);
@@ -328,7 +321,7 @@ public class GamePanel extends JPanel implements Runnable{
         d.setY(i.getY() - camera.getY());
         d.setZ(i.getZ() - camera.getZ());
 
-        //координата z для камеры
+        //координата x, y, z для камеры
         double z = (d.getX() * viewPoint.getX() + d.getY() * viewPoint.getY() + d.getZ() * viewPoint.getZ()) / Math.sqrt(viewPoint.getX() * viewPoint.getX() + viewPoint.getY() * viewPoint.getY() + viewPoint.getZ() * viewPoint.getZ());
         double x = (d.getX() * cameraX.getX() + d.getY() * cameraX.getY() + d.getZ() * cameraX.getZ()) / Math.sqrt(cameraX.getX() * cameraX.getX() + cameraX.getY() * cameraX.getY() + cameraX.getZ() * cameraX.getZ());
         double y = (d.getX() * cameraY.getX() + d.getY() * cameraY.getY() + d.getZ() * cameraY.getZ()) / Math.sqrt(cameraY.getX() * cameraY.getX() + cameraY.getY() * cameraY.getY() + cameraY.getZ() * cameraY.getZ());
@@ -338,6 +331,5 @@ public class GamePanel extends JPanel implements Runnable{
         o.setY(y);
         return o;
     }
-
 }
 
