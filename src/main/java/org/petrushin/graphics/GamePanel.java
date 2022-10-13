@@ -228,13 +228,13 @@ public class GamePanel extends JPanel implements Runnable{
         List<Triangle> triangles = new ArrayList<>();
 
 
-        for(Triangle triangle : mountain.getTriangles()) {
+        for(Triangle triangle : teapot.getTriangles()) {
             //координаты треугольника переведенные из мировой системы в систему камеры
             Triangle triangleRotated = new Triangle(getDotRelationCamera(triangle.getDot1()), getDotRelationCamera(triangle.getDot2()), getDotRelationCamera(triangle.getDot3()));
 
             //в теории не должно прорисовывать объекты которые за камерой
 
-            if(!checkVisibility(triangleRotated)) continue;
+//            if(!checkVisibility(triangleRotated)) continue;
 
 //            if(triangle.getDot1().getZ() <= camera.getZ() || triangle.getDot2().getZ() <= camera.getZ() || triangle.getDot3().getZ() <= camera.getZ()) continue;
 //            boolean visible = true;
@@ -248,7 +248,9 @@ public class GamePanel extends JPanel implements Runnable{
 
             Dot normal = getNormal(triangleRotated);
 
-            if (normal.getX() * (triangleRotated.getDot1().getX() - camera.getX()) + normal.getY() * (triangleRotated.getDot1().getY() - camera.getY()) + normal.getZ() * (triangleRotated.getDot1().getZ() - camera.getZ()) > 0.0) {
+
+            if ((normal.getX() - camera.getX()) * (triangleRotated.getDot1().getX() - camera.getX()) + (normal.getY() - camera.getY()) * (triangleRotated.getDot1().getY() - camera.getY()) + (normal.getZ() - camera.getZ()) * (triangleRotated.getDot1().getZ() - camera.getZ())> 0.0) {
+
 
                 //проэкция треугольника на плоскость (3д -> 2д)
                 Triangle triangleProjection = new Triangle(multiplyProjection(triangleRotated.getDot1(), projectionMatrix), multiplyProjection(triangleRotated.getDot2(), projectionMatrix), multiplyProjection(triangleRotated.getDot3(), projectionMatrix));
@@ -259,6 +261,11 @@ public class GamePanel extends JPanel implements Runnable{
                 triangleProjection.getDot2().setY((triangleProjection.getDot2().getY() + 1.0) * WINDOW_HEIGHT * 0.5);
                 triangleProjection.getDot3().setX((triangleProjection.getDot3().getX() + 1.0) * WINDOW_WIDTH * 0.5);
                 triangleProjection.getDot3().setY((triangleProjection.getDot3().getY() + 1.0) * WINDOW_HEIGHT * 0.5);
+
+//            int x[] = {(int)triangleProjection.getDot1().getX(),(int)triangleProjection.getDot2().getX(), (int)triangleProjection.getDot3().getX()};
+//            int y[] = {(int)triangleProjection.getDot1().getY(),(int)triangleProjection.getDot2().getY(), (int)triangleProjection.getDot3().getY()};
+//            g2.setColor(new Color(0, 0, 255));
+//            g2.drawPolygon(x, y, 3);
 
                 double dotProduct = normal.getX() * light.getX() + normal.getY() * light.getY() + normal.getZ() * light.getZ();
 
@@ -356,7 +363,7 @@ public class GamePanel extends JPanel implements Runnable{
             Dot dotY = new Dot ( camera.getX(), dot.getY() - camera.getZ(), dot.getZ() - camera.getZ());
 
             Dot viewDot = new Dot(viewPoint.getX() - camera.getX(), viewPoint.getY() - camera.getY(), viewPoint.getZ() - camera.getZ());
-            if(     Math.toDegrees(Math.acos((dot.getX() * viewDot.getX() + dot.getY() * viewDot.getY() + dot.getZ() * viewDot.getZ()) / (Math.sqrt(dot.getX() * dot.getX() + dot.getY() * dot.getY() + dot.getZ() * dot.getZ()) * Math.sqrt(viewDot.getX() * viewDot.getX() + viewDot.getY() * viewDot.getY() + viewDot.getZ() *viewDot.getZ())))) >= 45) b = false;
+//            if(     Math.toDegrees(Math.acos((dot.getX() * viewDot.getX() + dot.getY() * viewDot.getY() + dot.getZ() * viewDot.getZ()) / (Math.sqrt(dot.getX() * dot.getX() + dot.getY() * dot.getY() + dot.getZ() * dot.getZ()) * Math.sqrt(viewDot.getX() * viewDot.getX() + viewDot.getY() * viewDot.getY() + viewDot.getZ() *viewDot.getZ())))) >= 45) b = false;
 
 
 
