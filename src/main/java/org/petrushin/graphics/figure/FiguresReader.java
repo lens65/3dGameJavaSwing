@@ -9,7 +9,8 @@ import java.util.Scanner;
 //класс со статическим методом для чтения файла с координатами и преоброзования его в фигуру
 public class FiguresReader {
 
-    public static Figure readFigureFromFile(String fileName){
+    //xs, ys, zs - положение фигуры в мировой системе координат
+    public static Figure readFigureFromFile(double xs, double ys, double zs, String fileName){
         Figure fig = new Figure();
         try {
             File file = new File(fileName);
@@ -19,9 +20,9 @@ public class FiguresReader {
             while(scanner.hasNextLine()){
                 str = scanner.nextLine().split("\\s+");
                 if(str[0].equals("v")){
-                    double x = Double.parseDouble( str[1]);
-                    double y = Double.parseDouble( str[2]);
-                    double z = Double.parseDouble( str[3]);
+                    double x = Double.parseDouble( str[1]) + xs;
+                    double y = Double.parseDouble( str[2]) + ys;
+                    double z = Double.parseDouble( str[3]) + zs;
                     dots.add(new Dot(x, y, z));
                 }
                 if(str[0].equals("f")){

@@ -16,7 +16,7 @@ public class GamePanel extends JPanel implements Runnable{
     private final int WINDOW_HEIGHT = 800;
     private KeyHandler keyHandler = new KeyHandler();
 
-    private int Fps = 60;
+    private int Fps = 120;
 
     private final int fov = 90;
     private double a = (double) WINDOW_HEIGHT/(double) WINDOW_WIDTH;
@@ -57,9 +57,16 @@ public class GamePanel extends JPanel implements Runnable{
     private double theta = 0.0;
 
 
-    private Figure teapot = FiguresReader.readFigureFromFile("F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\teapot.txt");
-    private Figure cube = FiguresReader.readFigureFromFile("F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\tinker.txt");
-    private Figure mountain = FiguresReader.readFigureFromFile("F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\mountain.txt");
+    private Figure teapot = FiguresReader.readFigureFromFile(10.0, 10.0, 10.0, "F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\teapot.txt");
+    private Figure cube = FiguresReader.readFigureFromFile(0.0,0.0,5.0, "F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\tinker.txt");
+    private Figure cube1 = FiguresReader.readFigureFromFile(0.0,0.0,6.0, "F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\tinker.txt");
+    private Figure cube2 = FiguresReader.readFigureFromFile(1.0,0.0,5.0, "F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\tinker.txt");
+    private Figure cube3 = FiguresReader.readFigureFromFile(0.5,1.0,5.0, "F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\tinker.txt");
+//    private Figure mountain = FiguresReader.readFigureFromFile("F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\mountain.txt");
+
+    private List<Figure> figures = new ArrayList<>();
+
+
 
     public GamePanel(){
         this.setPreferredSize(new Dimension(WINDOW_WIDTH, WINDOW_HEIGHT));
@@ -72,6 +79,7 @@ public class GamePanel extends JPanel implements Runnable{
     Thread gameThread;
 
     private void setDefaultValues(){
+        //добавление стандарных значений в матрицу трансформации
         projectionMatrix[0][0] = a * t;
         projectionMatrix[1][1] = t;
         projectionMatrix[2][2] = z11;
@@ -81,6 +89,13 @@ public class GamePanel extends JPanel implements Runnable{
         light.setX(light.getX() / lengthLight);
         light.setY(light.getY() / lengthLight);
         light.setZ(light.getZ() / lengthLight);
+
+        //создания списка фигур для отображения
+        figures.add(cube);
+        figures.add(cube1);
+        figures.add(cube2);
+        figures.add(cube3);
+
     }
 
 
@@ -117,7 +132,6 @@ public class GamePanel extends JPanel implements Runnable{
             alpha--;
             if (alpha == -1) alpha=360;
             rotateCamera();
-
         }
         if(keyHandler.leftPressed){
             alpha++;
@@ -221,58 +235,59 @@ public class GamePanel extends JPanel implements Runnable{
 
         Map<Triangle, Double> trianglesWD = new HashMap<>();
         List<Triangle> triangles = new ArrayList<>();
+        for(Figure figure : figures) {
+            for (Triangle triangle : figure.getTriangles()) {
 
-        for(Triangle triangle : teapot.getTriangles()) {
+                //координаты треугольника переведенные из мировой системы в систему камеры
+                Triangle triangleRotated = new Triangle(getDotRelationCamera(triangle.getDot1()), getDotRelationCamera(triangle.getDot2()), getDotRelationCamera(triangle.getDot3()));
 
-            //координаты треугольника переведенные из мировой системы в систему камеры
-            Triangle triangleRotated = new Triangle(getDotRelationCamera(triangle.getDot1()), getDotRelationCamera(triangle.getDot2()), getDotRelationCamera(triangle.getDot3()));
+                Dot normal = getNormal(triangleRotated);
 
-            Dot normal = getNormal(triangleRotated);
+                if ((normal.getX() - camera.getX()) * (triangleRotated.getDot1().getX() - camera.getX()) + (normal.getY() - camera.getY()) * (triangleRotated.getDot1().getY() - camera.getY()) + (normal.getZ() - camera.getZ()) * (triangleRotated.getDot1().getZ() - camera.getZ()) > 0.0) {
+                    //проэкция треугольника на плоскость (3д -> 2д)
+                    Triangle triangleProjection = new Triangle(multiplyProjection(triangleRotated.getDot1(), projectionMatrix), multiplyProjection(triangleRotated.getDot2(), projectionMatrix), multiplyProjection(triangleRotated.getDot3(), projectionMatrix));
+                    //не прорисовывать объект за "спиной"
+                    if (triangleProjection.getDot1().getZ() > 1 ||
+                            triangleProjection.getDot2().getZ() > 1 ||
+                            triangleProjection.getDot3().getZ() > 1
+                    ) continue;
 
-            if ((normal.getX() - camera.getX()) * (triangleRotated.getDot1().getX() - camera.getX()) + (normal.getY() - camera.getY()) * (triangleRotated.getDot1().getY() - camera.getY()) + (normal.getZ() - camera.getZ()) * (triangleRotated.getDot1().getZ() - camera.getZ())> 0.0) {
-                //проэкция треугольника на плоскость (3д -> 2д)
-                Triangle triangleProjection = new Triangle(multiplyProjection(triangleRotated.getDot1(), projectionMatrix), multiplyProjection(triangleRotated.getDot2(), projectionMatrix), multiplyProjection(triangleRotated.getDot3(), projectionMatrix));
-                //не прорисовывать объект за "спиной"
-                if (    triangleProjection.getDot1().getZ() > 1 ||
-                        triangleProjection.getDot2().getZ() > 1 ||
-                        triangleProjection.getDot3().getZ() > 1
-                )   continue;
+                    triangleProjection.getDot1().setX((triangleProjection.getDot1().getX() + 1.0) * WINDOW_WIDTH * 0.5);
+                    triangleProjection.getDot1().setY((triangleProjection.getDot1().getY() + 1.0) * WINDOW_HEIGHT * 0.5);
+                    triangleProjection.getDot2().setX((triangleProjection.getDot2().getX() + 1.0) * WINDOW_WIDTH * 0.5);
+                    triangleProjection.getDot2().setY((triangleProjection.getDot2().getY() + 1.0) * WINDOW_HEIGHT * 0.5);
+                    triangleProjection.getDot3().setX((triangleProjection.getDot3().getX() + 1.0) * WINDOW_WIDTH * 0.5);
+                    triangleProjection.getDot3().setY((triangleProjection.getDot3().getY() + 1.0) * WINDOW_HEIGHT * 0.5);
 
-                triangleProjection.getDot1().setX((triangleProjection.getDot1().getX() + 1.0) * WINDOW_WIDTH * 0.5);
-                triangleProjection.getDot1().setY((triangleProjection.getDot1().getY() + 1.0) * WINDOW_HEIGHT * 0.5);
-                triangleProjection.getDot2().setX((triangleProjection.getDot2().getX() + 1.0) * WINDOW_WIDTH * 0.5);
-                triangleProjection.getDot2().setY((triangleProjection.getDot2().getY() + 1.0) * WINDOW_HEIGHT * 0.5);
-                triangleProjection.getDot3().setX((triangleProjection.getDot3().getX() + 1.0) * WINDOW_WIDTH * 0.5);
-                triangleProjection.getDot3().setY((triangleProjection.getDot3().getY() + 1.0) * WINDOW_HEIGHT * 0.5);
+                    double dotProduct = normal.getX() * light.getX() + normal.getY() * light.getY() + normal.getZ() * light.getZ();
 
-                double dotProduct = normal.getX() * light.getX() + normal.getY() * light.getY() + normal.getZ() * light.getZ();
+                    Triangle tr = new Triangle(triangleProjection);
+                    trianglesWD.put(tr, dotProduct);
+                    triangles.add(tr);
+                }
 
-                Triangle tr = new Triangle(triangleProjection);
-                trianglesWD.put(tr,dotProduct );
-                triangles.add(tr);
             }
+            triangles.sort((t1, t2) -> {
+                double z1 = (t1.getDot1().getZ() + t1.getDot2().getZ() + t1.getDot3().getZ()) / 3;
+                double z2 = (t2.getDot1().getZ() + t2.getDot2().getZ() + t2.getDot3().getZ()) / 3;
+                if (z1 > z2) {
+                    return -1;
+                } else if (z1 < z2) {
+                    return 1;
+                } else return 0;
+            });
+            for (Triangle triangle : triangles) {
+                double dotProduct = trianglesWD.get(triangle);
 
-        }
-        triangles.sort((t1, t2) ->{
-            double z1 = (t1.getDot1().getZ() + t1.getDot2().getZ() + t1.getDot3().getZ()) / 3;
-            double z2 = (t2.getDot1().getZ() + t2.getDot2().getZ() + t2.getDot3().getZ()) / 3;
-            if(z1 > z2) {
-                return -1;
-            } else if (z1 < z2) {
-                return 1;
-            } else return 0;
-        });
-        for(Triangle triangle : triangles){
-            double dotProduct = trianglesWD.get(triangle);
-
-            int x[] = {(int)triangle.getDot1().getX(),(int)triangle.getDot2().getX(), (int)triangle.getDot3().getX()};
-            int y[] = {(int)triangle.getDot1().getY(),(int)triangle.getDot2().getY(), (int)triangle.getDot3().getY()};
+                int x[] = {(int) triangle.getDot1().getX(), (int) triangle.getDot2().getX(), (int) triangle.getDot3().getX()};
+                int y[] = {(int) triangle.getDot1().getY(), (int) triangle.getDot2().getY(), (int) triangle.getDot3().getY()};
 
 
-            g2.setColor(new Color(0, 0, 255));
-            g2.fillPolygon(x, y, 3);
-            g2.setColor(new Color(0, 0, 0, dotProduct < 0 ? (int)(-dotProduct * 150) : 150));
-            g2.fillPolygon(x, y, 3);
+                g2.setColor(new Color(0, 0, 255));
+                g2.fillPolygon(x, y, 3);
+                g2.setColor(new Color(0, 0, 0, dotProduct < 0 ? (int) (-dotProduct * 150) : 150));
+                g2.fillPolygon(x, y, 3);
+            }
         }
         g2.dispose();
     }
