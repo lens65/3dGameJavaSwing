@@ -15,13 +15,15 @@ public class GamePanel extends JPanel implements Runnable{
     private final int WINDOW_WIDTH = 800;
     private final int WINDOW_HEIGHT = 800;
     private KeyHandler keyHandler = new KeyHandler();
+    private MouseMotionListener mouse = new MouseMotionListener();
 
-    private int Fps = 120;
+    private int Fps = 60;
 
     private final int fov = 90;
     private double a = (double) WINDOW_HEIGHT/(double) WINDOW_WIDTH;
     private double t = 1.0 / Math.tan(Math.toRadians(fov/2));
-    private double maxDistance = 1000.0;
+    private double maxDistance = 10000.0;
+//    private double distanceToDisplay = 10.1;
     private double distanceToDisplay = 10.1;
     private double z11 = maxDistance / (maxDistance - distanceToDisplay);
     private double z22 = (maxDistance * distanceToDisplay) / (maxDistance - distanceToDisplay);
@@ -62,16 +64,16 @@ public class GamePanel extends JPanel implements Runnable{
     private Figure cube1 = FiguresReader.readFigureFromFile(0.0,0.0,6.0, "F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\tinker.txt");
     private Figure cube2 = FiguresReader.readFigureFromFile(1.0,0.0,5.0, "F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\tinker.txt");
     private Figure cube3 = FiguresReader.readFigureFromFile(0.5,1.0,5.0, "F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\tinker.txt");
-//    private Figure mountain = FiguresReader.readFigureFromFile("F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\mountain.txt");
+//    private Figure mountain = FiguresReader.readFigureFromFile(0,0,0,"F:\\IntelliJ IDEA\\FPSGame\\3dGameJavaSwing\\src\\main\\resources\\mountain.txt");
 
     private List<Figure> figures = new ArrayList<>();
-
 
 
     public GamePanel(){
         this.setPreferredSize(new Dimension(WINDOW_WIDTH, WINDOW_HEIGHT));
         this.setBackground(Color.black);
         this.setDoubleBuffered(true);
+        this.addMouseMotionListener(mouse);
         this.addKeyListener(keyHandler);
         this.setFocusable(true);
     }
@@ -91,10 +93,12 @@ public class GamePanel extends JPanel implements Runnable{
         light.setZ(light.getZ() / lengthLight);
 
         //создания списка фигур для отображения
-        figures.add(cube);
-        figures.add(cube1);
-        figures.add(cube2);
-        figures.add(cube3);
+//        figures.add(cube);
+//        figures.add(cube1);
+//        figures.add(cube2);
+//        figures.add(cube3);
+        figures.add(teapot);
+//        figures.add(mountain);
 
     }
 
@@ -126,107 +130,94 @@ public class GamePanel extends JPanel implements Runnable{
         }
     }
 
-    public void update(){
+public void update(){
 
-        if(keyHandler.rightPressed){
-            alpha--;
-            if (alpha == -1) alpha=360;
-            rotateCamera();
-        }
-        if(keyHandler.leftPressed){
-            alpha++;
-            if (alpha == 361) alpha=0;
-            rotateCamera();
-        }
+    alpha = 0;
+    beta = 0;
+    double[][] rotMatrix = new double[4][4];
 
-        if(keyHandler.upPressed){
-            beta++;
-            if(beta > 90) beta = 90;
-            rotateCamera();
-        }
+    if(keyHandler.rightPressed){
+        alpha++;
 
-        if(keyHandler.downPressed){
-            beta--;
-            if(beta < -90) beta =  -90;
-            rotateCamera();
-        }
-        if(keyHandler.moveForwardPressed){
-            moveDots(viewPoint, true);
-            rotateCamera();
-        }
-        if(keyHandler.moveBackPressed){
-            moveDots(viewPoint, false);
-            rotateCamera();
-        }
-        if(keyHandler.moveRightPressed){
-            moveDots(cameraX, true);
-            rotateCamera();
-        }
-        if(keyHandler.moveLeftPressed){
-            moveDots(cameraX, false);
-            rotateCamera();
-        }
+        rotMatrix = correctCameraRotation(worldY, alpha);
+        viewPoint = multiplyProjection(viewPoint, rotMatrix);
+        cameraX = multiplyProjection(cameraX, rotMatrix);
+        cameraY = multiplyProjection(cameraY, rotMatrix);
+    } else if(keyHandler.leftPressed){
+        alpha--;
+        rotMatrix = correctCameraRotation(worldY, alpha);
+        viewPoint = multiplyProjection(viewPoint, rotMatrix);
+        cameraX = multiplyProjection(cameraX, rotMatrix);
+        cameraY = multiplyProjection(cameraY, rotMatrix);
     }
 
-    private void rotateCamera() {
-        //Углы поворота Эйлера и матрица к ним но эта матрица для углов ZXZ, я использую YXY
-        //https://ru.wikipedia.org/wiki/%D0%A3%D0%B3%D0%BB%D1%8B_%D0%AD%D0%B9%D0%BB%D0%B5%D1%80%D0%B0
-        //Матрицы для поворотов
-        //https://ru.wikipedia.org/wiki/%D0%9C%D0%B0%D1%82%D1%80%D0%B8%D1%86%D0%B0_%D0%BF%D0%BE%D0%B2%D0%BE%D1%80%D0%BE%D1%82%D0%B0
-        //матрица для вращения по горизонтали
-//        matrixRot1[0][0] = Math.cos(Math.toRadians(alpha));
-//        matrixRot1[0][2] = Math.sin(Math.toRadians(alpha));
-//        matrixRot1[1][1] = 1;
-//        matrixRot1[2][0] = -Math.sin(Math.toRadians(alpha));
-//        matrixRot1[2][2] = Math.cos(Math.toRadians(alpha));
-//        matrixRot1[3][3] = 1;
-////матрица для вращения по вертикали
-//        matrixRot[0][0] = 1;
-//        matrixRot[1][1] = Math.cos(Math.toRadians(beta));
-//        matrixRot[1][2] = -Math.sin(Math.toRadians(beta));
-//        matrixRot[2][1] = Math.sin(Math.toRadians(beta));
-//        matrixRot[2][2] = Math.cos(Math.toRadians(beta));
-//        matrixRot[3][3] = 1;
-        //произмедение 2х последних матриц
-        matrixRot[0][0] = Math.cos(Math.toRadians(alpha));
-        matrixRot[0][1] = Math.sin(Math.toRadians(alpha)) * Math.sin(Math.toRadians(beta));
-        matrixRot[0][2] = Math.sin(Math.toRadians(alpha)) * Math.cos(Math.toRadians(beta));
-        matrixRot[1][1] = Math.cos(Math.toRadians(beta));
-        matrixRot[1][2] = -Math.sin(Math.toRadians(beta));
-        matrixRot[2][0] = -Math.sin(Math.toRadians(alpha));
-        matrixRot[2][1] = Math.cos(Math.toRadians(alpha)) * Math.sin(Math.toRadians(beta));
-        matrixRot[2][2] = Math.cos(Math.toRadians(alpha)) * Math.cos(Math.toRadians(beta));
-        matrixRot[3][3] = 1;
+    if(keyHandler.upPressed){
+        beta++;
+        rotMatrix = correctCameraRotation(cameraX, beta);
+        viewPoint = multiplyProjection(viewPoint, rotMatrix);
+        cameraY = multiplyProjection(cameraY, rotMatrix);
+    } else if(keyHandler.downPressed){
+        beta--;
+        rotMatrix = correctCameraRotation(cameraX, beta);
+        viewPoint = multiplyProjection(viewPoint, rotMatrix);
+        cameraY = multiplyProjection(cameraY, rotMatrix);
+    }
+
+    if(keyHandler.moveForwardPressed){
+        moveDots(viewPoint, true);
+    }else if(keyHandler.moveBackPressed){
+        moveDots(viewPoint, false);
+    }
+
+    if(keyHandler.moveRightPressed){
+        moveDots(cameraX, true);
+    }else if(keyHandler.moveLeftPressed){
+        moveDots(cameraX, false);
+    }
 
 
-        cameraX.changeCoordinate(multiplyProjection(worldX, matrixRot));
-        viewPoint.changeCoordinate(multiplyProjection(worldZ, matrixRot));
-        cameraY.changeCoordinate(multiplyProjection(worldY, matrixRot));
+}
 
+    private double[][] correctCameraRotation(Dot dot, double theta){
+        double[][] matrix = {{1.0, 0.0, 0.0, 0.0},{0.0, 1.0, 0.0, 0.0},{0.0, 0.0, 1.0, 0.0},{0.0, 0.0, 0.0, 1.0}};
+
+        double t = Math.toRadians(theta);
+        double cosT = Math.cos(t);
+        double sinT = Math.sin(t);
+
+        matrix[0][0] = ((cosT + (1 - cosT) * dot.getX() * dot.getX()));
+        matrix[0][1] = (((1 - cosT) * dot.getX() * dot.getY() - sinT * dot.getZ()));
+        matrix[0][2] = (((1 - cosT) * dot.getX() * dot.getZ() + sinT * dot.getY()));
+
+        matrix[1][0] = (((1 - cosT) * dot.getY() * dot.getX() + sinT * dot.getZ()));
+        matrix[1][1] = ((cosT + (1 - cosT) * dot.getY() * dot.getY()));
+        matrix[1][2] = (((1 - cosT) * dot.getY() * dot.getZ() - sinT * dot.getX()));
+
+        matrix[2][0] = (((1 - cosT) * dot.getZ() * dot.getX() - sinT * dot.getY()));
+        matrix[2][1] = (((1 - cosT) * dot.getZ() * dot.getY() + sinT * dot.getX()));
+        matrix[2][2] = ((cosT + (1 - cosT) * dot.getZ() * dot.getZ()));
+
+        return matrix;
     }
 
     //перемещение камеры и векторов системы камеры
     private void moveDots(Dot i, boolean dir){
-        i.setX(i.getX() / 10);
-        i.setY(i.getY() / 10);
-        i.setZ(i.getZ()  / 10);
-        //проэкция вектора по которому перемещаемся на мировые вектора, что бы определирть величину смещения точек камеры
-        double distanceX = (i.getX() * worldX.getX() + i.getY() * worldX.getY() + i.getZ() * worldX.getZ()) / Math.sqrt(worldX.getX() * worldX.getX() + worldX.getY() * worldX.getY() + worldX.getZ() * worldX.getZ());
-        double distanceY = (i.getX() * worldY.getX() + i.getY() * worldY.getY() + i.getZ() * worldY.getZ()) / Math.sqrt(worldY.getX() * worldY.getX() + worldY.getY() * worldY.getY() + worldY.getZ() * worldY.getZ());
-        double distanceZ = (i.getX() * worldZ.getX() + i.getY() * worldZ.getY() + i.getZ() * worldZ.getZ()) / Math.sqrt(worldZ.getX() * worldZ.getX() + worldZ.getY() * worldZ.getY() + worldZ.getZ() * worldZ.getZ());
+        Dot d = new Dot();
+
+        d.setX(i.getX() / 10);
+        d.setY(i.getY() / 10);
+        d.setZ(i.getZ()  / 10);
+
         if(dir) {
-            for (Dot dot : cameraDots) {
-                dot.setX(dot.getX() + distanceX);
-                dot.setY(dot.getY() - distanceY);
-                dot.setZ(dot.getZ() + distanceZ);
-            }
+            camera.setX(camera.getX() +  d.getX());
+            camera.setY(camera.getY() + d.getY());
+            camera.setZ(camera.getZ() + d.getZ());
         } else {
-            for (Dot dot : cameraDots) {
-                dot.setX(dot.getX() - distanceX);
-                dot.setY(dot.getY() + distanceY);
-                dot.setZ(dot.getZ() - distanceZ);
-            }
+            camera.setX(camera.getX() -  d.getX());
+            camera.setY(camera.getY() - d.getY());
+            camera.setZ(camera.getZ() - d.getZ());
         }
+
     }
 
     public void paintComponent(Graphics g){
@@ -337,9 +328,10 @@ public class GamePanel extends JPanel implements Runnable{
         d.setZ(i.getZ() - camera.getZ());
 
         //координата x, y, z для камеры
-        double z = (d.getX() * viewPoint.getX() + d.getY() * viewPoint.getY() + d.getZ() * viewPoint.getZ()) / Math.sqrt(viewPoint.getX() * viewPoint.getX() + viewPoint.getY() * viewPoint.getY() + viewPoint.getZ() * viewPoint.getZ());
-        double x = (d.getX() * cameraX.getX() + d.getY() * cameraX.getY() + d.getZ() * cameraX.getZ()) / Math.sqrt(cameraX.getX() * cameraX.getX() + cameraX.getY() * cameraX.getY() + cameraX.getZ() * cameraX.getZ());
-        double y = (d.getX() * cameraY.getX() + d.getY() * cameraY.getY() + d.getZ() * cameraY.getZ()) / Math.sqrt(cameraY.getX() * cameraY.getX() + cameraY.getY() * cameraY.getY() + cameraY.getZ() * cameraY.getZ());
+        double z = (d.getX() * viewPoint.getX() + d.getY() * viewPoint.getY() + d.getZ() * viewPoint.getZ());
+        double x = (d.getX() * cameraX.getX() + d.getY() * cameraX.getY() + d.getZ() * cameraX.getZ());
+        double y = (d.getX() * cameraY.getX() + d.getY() * cameraY.getY() + d.getZ() * cameraY.getZ());
+
         //далее нужно спроэктировать этот вектор на вектор направления взгляда, определить длинну проекции -> длинна проекчии Z для дальнейших расчетов проэкции точки на экран
         o.setZ(z);
         o.setX(x);
